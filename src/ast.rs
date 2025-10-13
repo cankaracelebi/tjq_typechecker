@@ -30,12 +30,13 @@ pub enum Type {
     Bool,
     Tuple(Vec<Type>),
 
-    Top,
-    Bot,
+    // Top,
+    // Bot,
     Union(Vec<Type>),
     Inter(Vec<Type>),
     Neg(Box<Type>),
     Json(Box<JType>),
+    Mu(String, Box<JType>), // recursive JSON type (?)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -48,8 +49,8 @@ pub enum JType {
     Arr { elem: Box<JType>, len: Option<usize> }, 
     Obj { fields: Vec<JField>, extra: Option<Box<JType>> },
 
-    Top,
-    Bot,
+    // Top,
+    // Bot,
     Union(Vec<JType>),
     Inter(Vec<JType>),
     Neg(Box<JType>),
@@ -116,8 +117,8 @@ impl std::fmt::Display for Type {
                 let paren = matches!(a.as_ref(), Arrow(_, _) | Union(_) | Inter(_) | Neg(_));
                 if paren { write!(f, "({a}) → {b}") } else { write!(f, "{a} → {b}") }
             }
-            Top => write!(f, "⊤"),
-            Bot => write!(f, "⊥"),
+            // Top => write!(f, "⊤"),
+            // Bot => write!(f, "⊥"),
             Union(ts) => write_infix(f, " ∪ ", ts),
             Inter(ts) => write_infix(f, " ∩ ", ts),
             Neg(t) => {
@@ -125,6 +126,7 @@ impl std::fmt::Display for Type {
                 if paren { write!(f, "¬({t})") } else { write!(f, "¬{t}") }
             }
             Json(jt) => write!(f, "Json<{jt}>"),
+            Mu(v, jt) => write!(f, "μ{v}.{jt}"),    
         }
     }
 }
@@ -157,8 +159,8 @@ impl std::fmt::Display for JType {
                 }
                 write!(f, "}}")
             }
-            Top => write!(f, "⊤J"),
-            Bot => write!(f, "⊥J"),
+            // Top => write!(f, "⊤J"),
+            // Bot => write!(f, "⊥J"),
             Union(ts) => write_infix(f, " ∪ ", ts),
             Inter(ts) => write_infix(f, " ∩ ", ts),
             Neg(t) => {
