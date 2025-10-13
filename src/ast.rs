@@ -30,8 +30,6 @@ pub enum Type {
     Bool,
     Tuple(Vec<Type>),
 
-    // Top,
-    // Bot,
     Union(Vec<Type>),
     Inter(Vec<Type>),
     Neg(Box<Type>),
@@ -49,8 +47,6 @@ pub enum JType {
     Arr { elem: Box<JType>, len: Option<usize> }, 
     Obj { fields: Vec<JField>, extra: Option<Box<JType>> },
 
-    // Top,
-    // Bot,
     Union(Vec<JType>),
     Inter(Vec<JType>),
     Neg(Box<JType>),
