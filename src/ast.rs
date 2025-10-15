@@ -1,5 +1,5 @@
-use std::cmp::Ordering;
 use ordered_float::OrderedFloat;
+use std::cmp::Ordering;
 pub type Of64 = OrderedFloat<f64>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,7 +21,6 @@ pub enum Lit {
     Num(Of64),
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     Var(String),
@@ -33,19 +32,23 @@ pub enum Type {
     Union(Vec<Type>),
     Inter(Vec<Type>),
     Neg(Box<Type>),
-    Json(Box<JType>),
-    Mu(String, Box<JType>), // recursive JSON type (?)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum JType {
     Null,
-    Bool(Option<bool>),   
-    Num(Option<Of64>),      
-    Str(Option<String>),    
+    Bool(Option<bool>),
+    Num(Option<Of64>),
+    Str(Option<String>),
 
-    Arr { elem: Box<JType>, len: Option<usize> }, 
-    Obj { fields: Vec<JField>, extra: Option<Box<JType>> },
+    Arr {
+        elem: Box<JType>,
+        len: Option<usize>,
+    },
+    Obj {
+        fields: Vec<JField>,
+        extra: Option<Box<JType>>,
+    },
 
     Union(Vec<JType>),
     Inter(Vec<JType>),
@@ -56,7 +59,7 @@ pub enum JType {
 pub struct JField {
     pub name: String,
     pub ty: JType,
-    pub optional: bool, 
+    pub optional: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,7 +67,6 @@ pub struct Scheme {
     pub vars: Vec<String>,
     pub ty: Type,
 }
-
 
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -85,7 +87,9 @@ impl std::fmt::Display for Expr {
             Expr::Tuple(es) => {
                 write!(f, "(")?;
                 for (i, e) in es.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{e}")?;
                 }
                 write!(f, ")")
@@ -104,14 +108,20 @@ impl std::fmt::Display for Type {
             Tuple(ts) => {
                 write!(f, "(")?;
                 for (i, t) in ts.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{t}")?;
                 }
                 write!(f, ")")
             }
             Arrow(a, b) => {
                 let paren = matches!(a.as_ref(), Arrow(_, _) | Union(_) | Inter(_) | Neg(_));
-                if paren { write!(f, "({a}) → {b}") } else { write!(f, "{a} → {b}") }
+                if paren {
+                    write!(f, "({a}) → {b}")
+                } else {
+                    write!(f, "{a} → {b}")
+                }
             }
             // Top => write!(f, "⊤"),
             // Bot => write!(f, "⊥"),
@@ -119,10 +129,12 @@ impl std::fmt::Display for Type {
             Inter(ts) => write_infix(f, " ∩ ", ts),
             Neg(t) => {
                 let paren = matches!(t.as_ref(), Arrow(_, _) | Union(_) | Inter(_) | Neg(_));
-                if paren { write!(f, "¬({t})") } else { write!(f, "¬{t}") }
+                if paren {
+                    write!(f, "¬({t})")
+                } else {
+                    write!(f, "¬{t}")
+                }
             }
-            Json(jt) => write!(f, "Json<{jt}>"),
-            Mu(v, jt) => write!(f, "μ{v}.{jt}"),    
         }
     }
 }
@@ -145,12 +157,19 @@ impl std::fmt::Display for JType {
             Obj { fields, extra } => {
                 write!(f, "{{")?;
                 for (i, fld) in fields.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
-                    if fld.optional { write!(f, "{}?: {}", fld.name, fld.ty)?; }
-                    else { write!(f, "{}: {}", fld.name, fld.ty)?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    if fld.optional {
+                        write!(f, "{}?: {}", fld.name, fld.ty)?;
+                    } else {
+                        write!(f, "{}: {}", fld.name, fld.ty)?;
+                    }
                 }
                 if let Some(rest) = extra {
-                    if !fields.is_empty() { write!(f, ", ")?; }
+                    if !fields.is_empty() {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "..: {}", rest)?;
                 }
                 write!(f, "}}")
@@ -161,7 +180,11 @@ impl std::fmt::Display for JType {
             Inter(ts) => write_infix(f, " ∩ ", ts),
             Neg(t) => {
                 let paren = matches!(t.as_ref(), Union(_) | Inter(_) | Neg(_));
-                if paren { write!(f, "¬({t})") } else { write!(f, "¬{t}") }
+                if paren {
+                    write!(f, "¬({t})")
+                } else {
+                    write!(f, "¬{t}")
+                }
             }
         }
     }
@@ -169,8 +192,11 @@ impl std::fmt::Display for JType {
 
 impl std::fmt::Display for Scheme {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.vars.is_empty() { write!(f, "{}", self.ty) }
-        else { write!(f, "forall {}. {}", self.vars.join(" "), self.ty) }
+        if self.vars.is_empty() {
+            write!(f, "{}", self.ty)
+        } else {
+            write!(f, "forall {}. {}", self.vars.join(" "), self.ty)
+        }
     }
 }
 fn write_infix<T: std::fmt::Display>(
@@ -179,7 +205,11 @@ fn write_infix<T: std::fmt::Display>(
     xs: &[T],
 ) -> std::fmt::Result {
     let mut it = xs.iter();
-    if let Some(first) = it.next() { write!(f, "{first}")?; }
-    for x in it { write!(f, "{sep}{x}")?; }
+    if let Some(first) = it.next() {
+        write!(f, "{first}")?;
+    }
+    for x in it {
+        write!(f, "{sep}{x}")?;
+    }
     Ok(())
 }

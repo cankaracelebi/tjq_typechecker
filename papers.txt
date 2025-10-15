@@ -1,0 +1,3 @@
+
+Polymorphic Functions with Set-Theoretic Types. Part 2: Local Type Inference and Type Reconstruction
+https://hal.science/hal-00880744v2/file/2part-acmmain.pdf

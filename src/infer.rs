@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
-use crate::ast::{Expr, Lit, Scheme, Type, JType, JField};
+use crate::ast::{Expr, JField, JType, Lit, Scheme, Type};
 
 pub type TyVar = String;
 pub type TmVar = String;
-pub type Env = BTreeMap<TmVar, Scheme>; 
+pub type Env = BTreeMap<TmVar, Scheme>;
 pub type Subst = HashMap<TyVar, Type>;
 
 #[derive(Debug)]
@@ -37,11 +37,11 @@ impl Default for TypeInference {
     }
 }
 
-impl TypeInference{
-    pub fn new()-> Self {
+impl TypeInference {
+    pub fn new() -> Self {
         Self { counter: 0 }
     }
-    fn fresh_tyvar(&mut self) -> TyVar{
+    fn fresh_tyvar(&mut self) -> TyVar {
         let var = format!("t{}", self.counter);
         self.counter += 1;
         var
@@ -80,40 +80,48 @@ impl TypeInference{
             Type::Union(types) => {
                 Type::Union(types.iter().map(|t| self.apply_subst(subst, t)).collect())
             }
-            Type::Json(jt) => Type::Json(Box::new(self.apply_subst_jtype(subst, jt))),
-            Type::Mu(v, jt) => Type::Mu(v.clone(), Box::new(self.apply_subst_jtype(subst, jt))),
         }
     }
-    fn apply_subst_jtype(&self, subst: &Subst, ty: &JType) -> JType{
+    fn apply_subst_jtype(&self, subst: &Subst, ty: &JType) -> JType {
         //check !
         match ty {
-            JType::Arr { elem, len } => JType::Arr { 
-                elem: Box::new(self.apply_subst_jtype(subst, elem)), 
-                len: *len 
+            JType::Arr { elem, len } => JType::Arr {
+                elem: Box::new(self.apply_subst_jtype(subst, elem)),
+                len: *len,
             },
-            JType::Obj { fields, extra } => JType::Obj { 
-                fields: fields.iter().map(|f| JField { 
-                    name: f.name.clone(), 
-                    ty: self.apply_subst_jtype(subst, &f.ty), 
-                    optional: f.optional 
-                }).collect(),
-                extra: extra.as_ref().map(|e| Box::new(self.apply_subst_jtype(subst, e)))
+            JType::Obj { fields, extra } => JType::Obj {
+                fields: fields
+                    .iter()
+                    .map(|f| JField {
+                        name: f.name.clone(),
+                        ty: self.apply_subst_jtype(subst, &f.ty),
+                        optional: f.optional,
+                    })
+                    .collect(),
+                extra: extra
+                    .as_ref()
+                    .map(|e| Box::new(self.apply_subst_jtype(subst, e))),
             },
             JType::Null | JType::Bool(None) | JType::Num(None) | JType::Str(None) => ty.clone(),
             JType::Bool(Some(b)) => JType::Bool(Some(*b)),
             JType::Num(Some(n)) => JType::Num(Some(*n)),
             JType::Str(Some(s)) => JType::Str(Some(s.clone())),
-            JType::Inter(types) => {
-                JType::Inter(types.iter().map(|t| self.apply_subst_jtype(subst, t)).collect())
-            }
+            JType::Inter(types) => JType::Inter(
+                types
+                    .iter()
+                    .map(|t| self.apply_subst_jtype(subst, t))
+                    .collect(),
+            ),
             JType::Neg(t) => JType::Neg(Box::new(self.apply_subst_jtype(subst, t))),
-            JType::Union(types) => {
-                JType::Union(types.iter().map(|t| self.apply_subst_jtype(subst, t)).collect())
-            }
-
+            JType::Union(types) => JType::Union(
+                types
+                    .iter()
+                    .map(|t| self.apply_subst_jtype(subst, t))
+                    .collect(),
+            ),
         }
     }
-     fn apply_subst_scheme(&self, subst: &Subst, scheme: &Scheme) -> Scheme {
+    fn apply_subst_scheme(&self, subst: &Subst, scheme: &Scheme) -> Scheme {
         // Remove bindings for quantified variables to avoid capture
         let mut filtered_subst = subst.clone();
         for var in &scheme.vars {
@@ -164,8 +172,6 @@ impl TypeInference{
                 set
             }
             Type::Neg(t) => self.free_type_vars(t),
-            Type::Json(jt) => self.free_type_vars_jtype(jt),
-            Type::Mu(_, jt) => self.free_type_vars_jtype(jt),
         }
     }
     fn free_type_vars_jtype(&self, ty: &JType) -> HashSet<TyVar> {
@@ -193,16 +199,85 @@ impl TypeInference{
             JType::Neg(t) => self.free_type_vars_jtype(t),
         }
     }
-    fn unify(&self, t1: &Type, t2: &Type) -> Result<Subst, InferenceTree>{
+    fn unify(&self, t1: &Type, t2: &Type) -> Result<Subst, InferenceTree> {
         let input = format!("{} ~ {}", t1, t2);
         //should i unify set theoretic types here?
-        // match (t1,t2){
-            
-        // }
-        Result::Ok(HashMap::new())
 
+        match (t1, t2) {
+            (Type::Int, Type::Int) => todo!(),
+            (Type::Bool, Type::Bool) => todo!(),
+            (Type::Var(_), Type::Var(_)) => todo!(),
+            (Type::Var(_), Type::Arrow(_, _)) => todo!(),
+            (Type::Var(_), Type::Int) => todo!(),
+            (Type::Var(_), Type::Bool) => todo!(),
+            (Type::Var(_), Type::Tuple(items)) => todo!(),
+            (Type::Var(_), Type::Union(items)) => todo!(),
+            (Type::Var(_), Type::Inter(items)) => todo!(),
+            (Type::Var(_), Type::Neg(_)) => todo!(),
+            (Type::Arrow(_, _), Type::Var(_)) => todo!(),
+            (Type::Arrow(_, _), Type::Arrow(_, _)) => todo!(),
+            (Type::Arrow(_, _), Type::Int) => todo!(),
+            (Type::Arrow(_, _), Type::Bool) => todo!(),
+            (Type::Arrow(_, _), Type::Tuple(items)) => todo!(),
+            (Type::Arrow(_, _), Type::Union(items)) => todo!(),
+            (Type::Arrow(_, _), Type::Inter(items)) => todo!(),
+            (Type::Arrow(_, _), Type::Neg(_)) => todo!(),
+            (Type::Int, Type::Var(_)) => todo!(),
+            (Type::Int, Type::Arrow(_, _)) => todo!(),
+
+            (Type::Int, Type::Bool) => todo!(),
+            (Type::Int, Type::Tuple(items)) => todo!(),
+            (Type::Int, Type::Union(items)) => todo!(),
+            (Type::Int, Type::Inter(items)) => todo!(),
+            (Type::Int, Type::Neg(_)) => todo!(),
+            (Type::Bool, Type::Var(_)) => todo!(),
+            (Type::Bool, Type::Arrow(_, _)) => todo!(),
+            (Type::Bool, Type::Int) => todo!(),
+
+            (Type::Bool, Type::Tuple(items)) => todo!(),
+            (Type::Bool, Type::Union(items)) => todo!(),
+            (Type::Bool, Type::Inter(items)) => todo!(),
+            (Type::Bool, Type::Neg(_)) => todo!(),
+            (Type::Tuple(items), Type::Var(_)) => todo!(),
+            (Type::Tuple(items), Type::Arrow(_, _)) => todo!(),
+            (Type::Tuple(items), Type::Int) => todo!(),
+            (Type::Tuple(items), Type::Bool) => todo!(),
+            (Type::Tuple(items), Type::Tuple(items)) => todo!(),
+            (Type::Tuple(items), Type::Union(items)) => todo!(),
+            (Type::Tuple(items), Type::Inter(items)) => todo!(),
+            (Type::Tuple(items), Type::Neg(_)) => todo!(),
+            (Type::Union(items), Type::Var(_)) => todo!(),
+            (Type::Union(items), Type::Arrow(_, _)) => todo!(),
+            (Type::Union(items), Type::Int) => todo!(),
+            (Type::Union(items), Type::Bool) => todo!(),
+            (Type::Union(items), Type::Tuple(items)) => todo!(),
+            (Type::Union(items), Type::Union(items)) => todo!(),
+            (Type::Union(items), Type::Inter(items)) => todo!(),
+            (Type::Union(items), Type::Neg(_)) => todo!(),
+            (Type::Inter(items), Type::Var(_)) => todo!(),
+            (Type::Inter(items), Type::Arrow(_, _)) => todo!(),
+            (Type::Inter(items), Type::Int) => todo!(),
+            (Type::Inter(items), Type::Bool) => todo!(),
+            (Type::Inter(items), Type::Tuple(items)) => todo!(),
+            (Type::Inter(items), Type::Union(items)) => todo!(),
+            (Type::Inter(items), Type::Inter(items)) => todo!(),
+            (Type::Inter(items), Type::Neg(_)) => todo!(),
+            (Type::Neg(_), Type::Var(_)) => todo!(),
+            (Type::Neg(_), Type::Arrow(_, _)) => todo!(),
+            (Type::Neg(_), Type::Int) => todo!(),
+            (Type::Neg(_), Type::Bool) => todo!(),
+            (Type::Neg(_), Type::Tuple(items)) => todo!(),
+            (Type::Neg(_), Type::Union(items)) => todo!(),
+            (Type::Neg(_), Type::Inter(items)) => todo!(),
+            (Type::Neg(_), Type::Neg(_)) => todo!(),
+        }
+        Result::Ok(HashMap::new())
     }
-    pub fn infer(&mut self, env: &Env, expr: &Expr) -> Result<(Subst, Type, InferenceTree), String> {
+    pub fn infer(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         match expr {
             Expr::Lit(Lit::Int(_)) => self.infer_lit_int(env, expr),
             Expr::Lit(Lit::Bool(_)) => self.infer_lit_bool(env, expr),
@@ -214,102 +289,128 @@ impl TypeInference{
             // Expr::App(func, arg) => self.infer_app(env, expr, func, arg),
             // Expr::Let(var, value, body) => self.infer_let(env, expr, var, value, body),
             // Expr::Tuple(exprs) => self.infer_tuple(env, expr, exprs),
-
-            _ => todo!()
-            
+            _ => todo!(),
         }
     }
     /// T-Var: x : σ ∈ Γ    τ = inst(σ)
     ///        ─────────────────────────
     ///               Γ ⊢ x : τ
-    fn infer_var( &mut self, env: &Env, expr: &Expr, name: &str) -> Result<(Subst, Type, InferenceTree), String> {
-        
-        
-        
+    fn infer_var(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+        name: &str,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         todo!()
     }
     /// T-LitInt: ─────────────────
     ///           Γ ⊢ n : Int
-    fn infer_lit_int( &mut self, env: &Env, expr: &Expr ) -> Result<(Subst, Type, InferenceTree), String> {
-    
-    
-    
-        todo!() 
+    fn infer_lit_int(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
+        todo!()
     }
     /// T-LitBool: ─────────────────
     ///            Γ ⊢ b : Bool
-    fn infer_lit_bool( &mut self, env: &Env, expr: &Expr) -> Result<(Subst, Type, InferenceTree), String> {
-        
-    
-    
+    fn infer_lit_bool(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         todo!()
     }
     /// T-LitString: ─────────────────
     ///            Γ ⊢ s : String
-    fn infer_lit_string( &mut self, env: &Env, expr: &Expr) -> Result<(Subst, Type, InferenceTree), String> {
+    fn infer_lit_string(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         let input = format!("{} ⊢ {} : ?", self.pretty_env(env), expr);
-        let tree= InferenceTree::new("T-LitString", &input, "String", vec![]);
-    
-    
+        let tree = InferenceTree::new("T-LitString", &input, "String", vec![]);
+
         todo!()
     }
     /// T-LitNull: ─────────────────
     ///            Γ ⊢ n : Null
-    fn infer_lit_null( &mut self, env: &Env, expr: &Expr) -> Result<(Subst, Type, InferenceTree), String> {
+    fn infer_lit_null(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         let input = format!("{} ⊢ {} : ?", self.pretty_env(env), expr);
-        let tree= InferenceTree::new("T-LitNull", &input, "Null", vec![]);
-    
-    
+        let tree = InferenceTree::new("T-LitNull", &input, "Null", vec![]);
+
         todo!()
     }
     /// T-LitString: ─────────────────
     ///            Γ ⊢ n: num
-    fn infer_lit_num( &mut self, env: &Env, expr: &Expr) -> Result<(Subst, Type, InferenceTree), String> {
+    fn infer_lit_num(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         let input = format!("{} ⊢ {} : ?", self.pretty_env(env), expr);
-        let tree= InferenceTree::new("T-LitNum", &input, "Num", vec![]);
-    
-    
+        let tree = InferenceTree::new("T-LitNum", &input, "Num", vec![]);
+
         todo!()
     }
     /// T-Lam: Γ, x : α ⊢ e : τ    α fresh
     ///        ─────────────────────────────
     ///           Γ ⊢ λx. e : α → τ
-    fn infer_abs( &mut self, env: &Env, expr: &Expr, name: &str) -> Result<(Subst, Type, InferenceTree), String> {
-    
-    
-    
-       todo!()
+    fn infer_abs(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+        name: &str,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
+        todo!()
     }
     /// T-App: Γ ⊢ e₁ : τ₁    Γ ⊢ e₂ : τ₂    α fresh    S = unify(τ₁, τ₂ → α)
     ///        ──────────────────────────────────────────────────────────────
     ///                            Γ ⊢ e₁ e₂ : S(α)
-    fn infer_app( &mut self, env: &Env, expr: &Expr, name: &str) -> Result<(Subst, Type, InferenceTree), String> {
-    
-        
-        
+    fn infer_app(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+        name: &str,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         todo!()
-    
     }
     /// T-Let: Γ ⊢ e₁ : τ₁    σ = gen(Γ, τ₁)    Γ, x : σ ⊢ e₂ : τ₂
     ///        ──────────────────────────────────────────────────────
     ///                     Γ ⊢ let x = e₁ in e₂ : τ₂
-    fn infer_let( &mut self, env: &Env, expr: &Expr, name: &str) -> Result<(Subst, Type, InferenceTree), String> {
-    
-        
-        
+    fn infer_let(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+        name: &str,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         todo!()
     }
-    fn infer_tuple( &mut self, env: &Env, expr: &Expr, name: &str) -> Result<(Subst, Type, InferenceTree), String> {
-        
-        
-        
+    fn infer_tuple(
+        &mut self,
+        env: &Env,
+        expr: &Expr,
+        name: &str,
+    ) -> Result<(Subst, Type, InferenceTree), String> {
         todo!()
     }
-        
-    
-    
-    
 }
 
-
-
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_infer_lit_int() {
+        let mut ti = TypeInference::new();
+        let env = Env::new();
+        let expr = Expr::Lit(Lit::Int(42));
+        let (subst, ty, tree) = ti.infer(&env, &expr).unwrap();
+        assert!(subst.is_empty());
+        assert_eq!(ty, Type::Int);
+        assert_eq!(tree.rule, "T-LitInt");
+    }
+}
