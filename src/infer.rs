@@ -199,79 +199,71 @@ impl TypeInference {
             JType::Neg(t) => self.free_type_vars_jtype(t),
         }
     }
-    fn unify(&self, t1: &Type, t2: &Type) -> Result<Subst, InferenceTree> {
+    fn occurs_check(&self, var: &TyVar, ty: &Type) -> bool {
+        self.free_type_vars(ty).contains(var)
+    }
+    fn unify(&self, t1: &Type, t2: &Type) -> Result<(Subst, InferenceTree), String> {
         let input = format!("{} ~ {}", t1, t2);
-        //should i unify set theoretic types here?
-
+        
         match (t1, t2) {
-            (Type::Int, Type::Int) => todo!(),
-            (Type::Bool, Type::Bool) => todo!(),
-            (Type::Var(_), Type::Var(_)) => todo!(),
-            (Type::Var(_), Type::Arrow(_, _)) => todo!(),
-            (Type::Var(_), Type::Int) => todo!(),
-            (Type::Var(_), Type::Bool) => todo!(),
-            (Type::Var(_), Type::Tuple(items)) => todo!(),
-            (Type::Var(_), Type::Union(items)) => todo!(),
-            (Type::Var(_), Type::Inter(items)) => todo!(),
-            (Type::Var(_), Type::Neg(_)) => todo!(),
-            (Type::Arrow(_, _), Type::Var(_)) => todo!(),
-            (Type::Arrow(_, _), Type::Arrow(_, _)) => todo!(),
-            (Type::Arrow(_, _), Type::Int) => todo!(),
-            (Type::Arrow(_, _), Type::Bool) => todo!(),
-            (Type::Arrow(_, _), Type::Tuple(items)) => todo!(),
-            (Type::Arrow(_, _), Type::Union(items)) => todo!(),
-            (Type::Arrow(_, _), Type::Inter(items)) => todo!(),
-            (Type::Arrow(_, _), Type::Neg(_)) => todo!(),
-            (Type::Int, Type::Var(_)) => todo!(),
-            (Type::Int, Type::Arrow(_, _)) => todo!(),
+            (Type::Int, Type::Int) | (Type::Bool, Type::Bool) => {
+                let tree = InferenceTree::new("Unify-Base", &input, "{}", vec![]);
+                Ok((HashMap::new(), tree))
+            }
+            (Type::Var(v), ty) | (ty, Type::Var(v)) => {
+                if ty == &Type::Var(v.clone()) {
+                    let tree = InferenceTree::new("Unify-Var-Same", &input, "{}", vec![]);
+                    Ok((HashMap::new(), tree))
+                } else if self.occurs_check(v, ty) {
+                    Err(format!("Occurs check failed: {} occurs in {}", v, ty))
+                } else {
+                    let mut subst = HashMap::new();
+                    subst.insert(v.clone(), ty.clone());
+                    let output = format!("{{{}/{}}}", ty, v);
+                    let tree = InferenceTree::new("Unify-Var", &input, &output, vec![]);
+                    Ok((subst, tree))
+                }
+            }
+            (Type::Arrow(a1, a2), Type::Arrow(b1, b2)) => {
+                let (s1, tree1) = self.unify(a1, b1)?;
+                let a2_subst = self.apply_subst(&s1, a2);
+                let b2_subst = self.apply_subst(&s1, b2);
+                let (s2, tree2) = self.unify(&a2_subst, &b2_subst)?;
+                let final_subst = self.compose_subst(&s2, &s1);
+                let output = self.pretty_subst(&final_subst);
+                let tree = InferenceTree::new("Unify-Arrow", &input, &output, vec![tree1, tree2]);
+                Ok((final_subst, tree))
+            }
+            (Type::Tuple(ts1), Type::Tuple(ts2)) => {
+                if ts1.len() != ts2.len() {
+                    return Err(format!(
+                        "Tuple length mismatch: {} vs {}",
+                        ts1.len(),
+                        ts2.len()
+                    ));
+                }
 
-            (Type::Int, Type::Bool) => todo!(),
-            (Type::Int, Type::Tuple(items)) => todo!(),
-            (Type::Int, Type::Union(items)) => todo!(),
-            (Type::Int, Type::Inter(items)) => todo!(),
-            (Type::Int, Type::Neg(_)) => todo!(),
-            (Type::Bool, Type::Var(_)) => todo!(),
-            (Type::Bool, Type::Arrow(_, _)) => todo!(),
-            (Type::Bool, Type::Int) => todo!(),
+                let mut subst = HashMap::new();
+                let mut trees = Vec::new();
 
-            (Type::Bool, Type::Tuple(items)) => todo!(),
-            (Type::Bool, Type::Union(items)) => todo!(),
-            (Type::Bool, Type::Inter(items)) => todo!(),
-            (Type::Bool, Type::Neg(_)) => todo!(),
-            (Type::Tuple(items), Type::Var(_)) => todo!(),
-            (Type::Tuple(items), Type::Arrow(_, _)) => todo!(),
-            (Type::Tuple(items), Type::Int) => todo!(),
-            (Type::Tuple(items), Type::Bool) => todo!(),
-            (Type::Tuple(items), Type::Tuple(items)) => todo!(),
-            (Type::Tuple(items), Type::Union(items)) => todo!(),
-            (Type::Tuple(items), Type::Inter(items)) => todo!(),
-            (Type::Tuple(items), Type::Neg(_)) => todo!(),
-            (Type::Union(items), Type::Var(_)) => todo!(),
-            (Type::Union(items), Type::Arrow(_, _)) => todo!(),
-            (Type::Union(items), Type::Int) => todo!(),
-            (Type::Union(items), Type::Bool) => todo!(),
-            (Type::Union(items), Type::Tuple(items)) => todo!(),
-            (Type::Union(items), Type::Union(items)) => todo!(),
-            (Type::Union(items), Type::Inter(items)) => todo!(),
-            (Type::Union(items), Type::Neg(_)) => todo!(),
-            (Type::Inter(items), Type::Var(_)) => todo!(),
-            (Type::Inter(items), Type::Arrow(_, _)) => todo!(),
-            (Type::Inter(items), Type::Int) => todo!(),
-            (Type::Inter(items), Type::Bool) => todo!(),
-            (Type::Inter(items), Type::Tuple(items)) => todo!(),
-            (Type::Inter(items), Type::Union(items)) => todo!(),
-            (Type::Inter(items), Type::Inter(items)) => todo!(),
-            (Type::Inter(items), Type::Neg(_)) => todo!(),
-            (Type::Neg(_), Type::Var(_)) => todo!(),
-            (Type::Neg(_), Type::Arrow(_, _)) => todo!(),
-            (Type::Neg(_), Type::Int) => todo!(),
-            (Type::Neg(_), Type::Bool) => todo!(),
-            (Type::Neg(_), Type::Tuple(items)) => todo!(),
-            (Type::Neg(_), Type::Union(items)) => todo!(),
-            (Type::Neg(_), Type::Inter(items)) => todo!(),
-            (Type::Neg(_), Type::Neg(_)) => todo!(),
+                for (t1, t2) in ts1.iter().zip(ts2.iter()) {
+                    let t1_subst = self.apply_subst(&subst, t1);
+                    let t2_subst = self.apply_subst(&subst, t2);
+                    let (s, tree) = self.unify(&t1_subst, &t2_subst)?;
+                    subst = self.compose_subst(&s, &subst);
+                    trees.push(tree);
+                }
+
+                let output = self.pretty_subst(&subst);
+                let tree = InferenceTree::new("Unify-Tuple", &input, &output, trees);
+                Ok((subst, tree))
+            }
+            // FIXED: Return proper error string
+            _ => Err(format!(
+                "Unification failure: cannot unify {} with {}",
+                t1, t2
+            )),
         }
-        Result::Ok(HashMap::new())
     }
     pub fn infer(
         &mut self,
@@ -292,6 +284,17 @@ impl TypeInference {
             _ => todo!(),
         }
     }
+    fn instantiate(&mut self, scheme: &Scheme) -> Type {
+        // Create fresh type variables for each quantified variable
+        let mut subst = HashMap::new();
+        for var in &scheme.vars {
+            let fresh = self.fresh_tyvar();
+            subst.insert(var.clone(), Type::Var(fresh));
+        }
+
+        self.apply_subst(&subst, &scheme.ty)
+    }
+
     /// T-Var: x : σ ∈ Γ    τ = inst(σ)
     ///        ─────────────────────────
     ///               Γ ⊢ x : τ
@@ -301,7 +304,17 @@ impl TypeInference {
         expr: &Expr,
         name: &str,
     ) -> Result<(Subst, Type, InferenceTree), String> {
-        todo!()
+        let input = format!("{} ⊢ {} ⇒", self.pretty_env(env), expr);
+
+        match env.get(name) {
+            Some(scheme) => {
+                let instantiated = self.instantiate(scheme);
+                let output = format!("{}", instantiated);
+                let tree = InferenceTree::new("T-Var", &input, &output, vec![]);
+                Ok((HashMap::new(), instantiated, tree))
+            }
+            None => Err(format!("asd")),
+        }
     }
     /// T-LitInt: ─────────────────
     ///           Γ ⊢ n : Int
@@ -310,7 +323,9 @@ impl TypeInference {
         env: &Env,
         expr: &Expr,
     ) -> Result<(Subst, Type, InferenceTree), String> {
-        todo!()
+        let input = format!("{} ⊢ {} ⇒", self.pretty_env(env), expr);
+        let tree = InferenceTree::new("T-Int", &input, "Int", vec![]);
+        Ok((HashMap::new(), Type::Int, tree))
     }
     /// T-LitBool: ─────────────────
     ///            Γ ⊢ b : Bool
@@ -319,7 +334,9 @@ impl TypeInference {
         env: &Env,
         expr: &Expr,
     ) -> Result<(Subst, Type, InferenceTree), String> {
-        todo!()
+        let input = format!("{} ⊢ {} ⇒", self.pretty_env(env), expr);
+        let tree = InferenceTree::new("T-Bool", &input, "Bool", vec![]);
+        Ok((HashMap::new(), Type::Bool, tree))
     }
     /// T-LitString: ─────────────────
     ///            Γ ⊢ s : String
